@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🍽️ デモプロジェクト - 食事中に爆速でデモを作る
 
-## Getting Started
+取引先との食事の時間内で企画を決めて一気にデモを作成するためのプロジェクトです。
 
-First, run the development server:
+## ✨ 特徴
+
+- 🚀 **高速開発**: Next.js + TypeScript + Tailwind CSS
+- 🎨 **美しいUI**: モダンで洗練されたデザイン
+- 📊 **ダミーデータ**: 充実したダミーデータ生成ユーティリティ
+- 🔄 **ホットリロード**: 変更が即座に反映
+- 📝 **与件管理**: REQUIREMENTS.mdで要件を整理
+
+## 🚀 クイックスタート
 
 ```bash
+# 開発サーバー起動
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+ブラウザで [http://localhost:3000](http://localhost:3000) を開いてください。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📖 使い方
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+詳しい使い方は [SETUP.md](./SETUP.md) を参照してください。
 
-## Learn More
+### 1. 与件をメモ
+食事中にヒアリングした内容を `REQUIREMENTS.md` に記載
 
-To learn more about Next.js, take a look at the following resources:
+### 2. AIエージェントに指示
+与件に基づいて型定義、ダミーデータ、UIを生成
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 3. デモ完成！
+その場でデモを見せて提案をブラッシュアップ
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📁 主要ファイル
 
-## Deploy on Vercel
+| ファイル | 用途 |
+|---------|------|
+| `REQUIREMENTS.md` | 与件・要件メモ（ここに食事中の内容を記載） |
+| `SETUP.md` | セットアップと使い方の詳細ガイド |
+| `src/app/page.tsx` | メインページ（デモのUI） |
+| `src/types/index.ts` | 型定義 |
+| `src/data/sampleData.ts` | ダミーデータ |
+| `src/lib/dummyData.ts` | ダミーデータ生成ヘルパー |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🛠️ 技術スタック
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Next.js 16](https://nextjs.org/) - Reactフレームワーク
+- [TypeScript](https://www.typescriptlang.org/) - 型安全性
+- [Tailwind CSS](https://tailwindcss.com/) - ユーティリティファーストCSS
+- [React](https://react.dev/) - UIライブラリ
+
+## 🌐 デプロイ
+
+### Vercelへのデプロイ（推奨）
+
+```bash
+# Vercel CLIでデプロイ
+npx vercel
+```
+
+または、GitHubにプッシュして [Vercel](https://vercel.com) のダッシュボードから連携。
+
+## 📝 その他のコマンド
+
+```bash
+# ビルド
+npm run build
+
+# 本番サーバー起動
+npm run start
+
+# リントチェック
+npm run lint
+```
+
+## 💡 Tips
+
+- **型定義を先に**: まず型を定義すると開発がスムーズ
+- **ダミーデータは多めに**: 見栄えが良くなります
+- **コンポーネント再利用**: 同じUIはすぐにコンポーネント化
+
+## 📄 ライセンス
+
+このプロジェクトはデモ・プロトタイプ作成用です。
+
+---
+
+**準備完了！ 素晴らしいデモを作ってください！** 🎉
