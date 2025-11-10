@@ -27,16 +27,29 @@ npm run dev
 食事中にヒアリングした内容を `REQUIREMENTS.md` に記載
 
 ### 2. AIエージェントに指示
+**新しいチャットを開く場合は、[AI_PROMPT_TEMPLATE.md](./AI_PROMPT_TEMPLATE.md) のテンプレートを使用してください。**
+
 与件に基づいて型定義、ダミーデータ、UIを生成
 
 ### 3. デモ完成！
 その場でデモを見せて提案をブラッシュアップ
+
+## 🔄 新しいチャットで作業する場合
+
+新しいチャットセッションでは、コンテキストが引き継がれないため、**プロンプトが必要**です。
+
+1. `REQUIREMENTS.md` に与件を追加
+2. 新しいチャットを開く
+3. `AI_PROMPT_TEMPLATE.md` のテンプレートを使ってAIエージェントに指示
+
+詳しくは [AI_PROMPT_TEMPLATE.md](./AI_PROMPT_TEMPLATE.md) を参照してください。
 
 ## 📁 主要ファイル
 
 | ファイル | 用途 |
 |---------|------|
 | `REQUIREMENTS.md` | 与件・要件メモ（ここに食事中の内容を記載） |
+| `AI_PROMPT_TEMPLATE.md` | **新しいチャット用のプロンプトテンプレート** |
 | `SETUP.md` | セットアップと使い方の詳細ガイド |
 | `src/app/page.tsx` | メインページ（デモのUI） |
 | `src/types/index.ts` | 型定義 |
