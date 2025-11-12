@@ -14,7 +14,8 @@
     "agent:run:backend": "bash scripts/run-agents.sh backend",
     "agent:run:frontend": "bash scripts/run-agents.sh frontend",
     "agent:run:testing": "bash scripts/run-agents.sh testing",
-    "agent:run:review": "bash scripts/run-agents.sh review"
+    "agent:run:review": "bash scripts/run-agents.sh review",
+    "agent:progress": "bash scripts/check-agent-progress.sh"
   },
   "dependencies": {
     "react": "19.2.0",

@@ -3,7 +3,8 @@
 # マルチエージェント並列実行スクリプト
 # Claude Code MAX / Codex をターミナルから直接実行
 
-set -e
+# set -e をコメントアウト（エラー時も続行）
+# set -e
 
 # カラー定義
 GREEN='\033[0;32m'
@@ -120,10 +121,34 @@ ${prompt_content}"
       fi
       
       # Claudeを非対話モードで実行
-      echo "$prompt_content" | claude --print --model "$model_alias" > "$log_file" 2>&1 || {
-        echo -e "${RED}❌ ${agent_name} の実行に失敗しました${NC}"
-        echo -e "${YELLOW}ログファイル: $log_file${NC}"
-      }
+      # Macではtimeoutコマンドがないため、バックグラウンドで実行してタイマーを設定
+      (
+        echo "$prompt_content" | claude --print --model "$model_alias" > "$log_file" 2>&1
+        echo $? > "$worktree_path/.agent-${agent_name}.exitcode"
+      ) &
+      claude_pid=$!
+      
+      # タイムアウト監視（30分 = 1800秒）
+      timeout_seconds=1800
+      start_time=$(date +%s)
+      while kill -0 $claude_pid 2>/dev/null; do
+        current_time=$(date +%s)
+        elapsed=$((current_time - start_time))
+        if [ $elapsed -gt $timeout_seconds ]; then
+          kill $claude_pid 2>/dev/null
+          echo -e "${YELLOW}⚠️  ${agent_name} がタイムアウトしました（30分）${NC}" >&2
+          echo 124 > "$worktree_path/.agent-${agent_name}.exitcode"
+          break
+        fi
+        sleep 5
+      done
+      
+      wait $claude_pid 2>/dev/null
+      exit_code=$(cat "$worktree_path/.agent-${agent_name}.exitcode" 2>/dev/null || echo 0)
+      if [ $exit_code -ne 0 ] && [ $exit_code -ne 124 ]; then
+        echo -e "${RED}❌ ${agent_name} の実行に失敗しました（終了コード: $exit_code）${NC}" >&2
+        echo -e "${YELLOW}ログファイル: $log_file${NC}" >&2
+      fi
     elif [ "$model_type" == "codex" ]; then
       # Codex (OpenAI) を実行
       if ! command -v codex &> /dev/null; then
@@ -163,10 +188,34 @@ ${prompt_content}"
         codex_model="gpt-5-codex"
       fi
       
-      echo "$prompt_content" | codex exec --full-auto --model "$codex_model" > "$log_file" 2>&1 || {
-        echo -e "${RED}❌ ${agent_name} の実行に失敗しました${NC}"
-        echo -e "${YELLOW}ログファイル: $log_file${NC}"
-      }
+      # Codexを実行（タイムアウト30分）
+      (
+        echo "$prompt_content" | codex exec --full-auto --model "$codex_model" > "$log_file" 2>&1
+        echo $? > "$worktree_path/.agent-${agent_name}.exitcode"
+      ) &
+      codex_pid=$!
+      
+      # タイムアウト監視（30分 = 1800秒）
+      timeout_seconds=1800
+      start_time=$(date +%s)
+      while kill -0 $codex_pid 2>/dev/null; do
+        current_time=$(date +%s)
+        elapsed=$((current_time - start_time))
+        if [ $elapsed -gt $timeout_seconds ]; then
+          kill $codex_pid 2>/dev/null
+          echo -e "${YELLOW}⚠️  ${agent_name} がタイムアウトしました（30分）${NC}" >&2
+          echo 124 > "$worktree_path/.agent-${agent_name}.exitcode"
+          break
+        fi
+        sleep 5
+      done
+      
+      wait $codex_pid 2>/dev/null
+      exit_code=$(cat "$worktree_path/.agent-${agent_name}.exitcode" 2>/dev/null || echo 0)
+      if [ $exit_code -ne 0 ] && [ $exit_code -ne 124 ]; then
+        echo -e "${RED}❌ ${agent_name} の実行に失敗しました（終了コード: $exit_code）${NC}" >&2
+        echo -e "${YELLOW}ログファイル: $log_file${NC}" >&2
+      fi
     else
       echo -e "${RED}❌ 不明なモデルタイプ: $model_type${NC}"
       continue

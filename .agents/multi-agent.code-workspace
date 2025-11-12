@@ -1,0 +1,38 @@
+{
+  "folders": [
+    {
+      "name": "🏠 Main Project",
+      "path": "."
+    },
+    {
+      "name": "📐 Architect Agent",
+      "path": "/Users/masafumikikuchi/Dev/p_demo/../p_demo-worktrees/agent-architect-20251112"
+    },
+    {
+      "name": "🔧 Backend Agent",
+      "path": "/Users/masafumikikuchi/Dev/p_demo/../p_demo-worktrees/agent-backend-20251112"
+    },
+    {
+      "name": "🎨 Frontend Agent",
+      "path": "/Users/masafumikikuchi/Dev/p_demo/../p_demo-worktrees/agent-frontend-20251112"
+    },
+    {
+      "name": "🧪 Testing Agent",
+      "path": "/Users/masafumikikuchi/Dev/p_demo/../p_demo-worktrees/agent-testing-20251112"
+    },
+    {
+      "name": "🔍 Review Agent",
+      "path": "/Users/masafumikikuchi/Dev/p_demo/../p_demo-worktrees/agent-review-20251112"
+    }
+  ],
+  "settings": {
+    "git.branchProtection": ["main"],
+    "git.confirmSync": false,
+    "editor.formatOnSave": true,
+    "typescript.preferences.importModuleSpecifier": "relative",
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/.next": true
+    }
+  }
+}
