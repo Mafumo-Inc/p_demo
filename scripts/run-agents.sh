@@ -145,31 +145,76 @@ for agent_name in $AGENTS_TO_RUN; do
       if [ -n "$prompt_file" ] && [ -f "$prompt_file" ]; then
         prompt_content=$(cat "$prompt_file")
         # REQUIREMENTS.mdの内容も追加（エージェントプロンプトの後に追加）
+        # 重要: REQUIREMENTS.mdが長い場合、最初の200行のみを使用（約8KBに制限）
         if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
-          requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
+          # REQUIREMENTS.mdの最初の200行のみを読み込む（概要、目的、主要機能のみ）
+          requirements_content=$(head -200 "$PROJECT_ROOT/REQUIREMENTS.md")
+          # サイズが大きすぎる場合は警告
+          requirements_size=$(echo "$requirements_content" | wc -c)
+          if [ $requirements_size -gt 16000 ]; then
+            # 最初の150行に制限
+            requirements_content=$(head -150 "$PROJECT_ROOT/REQUIREMENTS.md")
+            requirements_content="${requirements_content}
+
+---
+
+**注意: 上記は要件の概要です。詳細な実装要件は省略しています。**
+**このプロジェクトはデモ作成用です。UIデモのみを実装してください。**"
+          fi
+          
           prompt_content="${prompt_content}
 
 ---
 
-## REQUIREMENTS.mdの内容
+## REQUIREMENTS.mdの内容（概要）
 
 以下の要件は**UIデモの要件**として理解してください。バックエンド実装は一切不要です。
 
-${requirements_content}"
+${requirements_content}
+
+---
+
+**重要: このプロジェクトはデモ作成用です。**
+- バックエンド実装は一切不要
+- フロントエンドのみで完結
+- 全てダミーデータを使用
+- UIデモのみを実装してください"
         fi
       else
         prompt_content="REQUIREMENTS.mdを読み込み、${role}として作業してください。\n\n⚠️ 重要: このプロジェクトはデモ作成用です。バックエンド実装は一切不要です。フロントエンドのみで完結し、全てダミーデータを使用してください。"
         if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
-          requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
+          # REQUIREMENTS.mdの最初の200行のみを読み込む
+          requirements_content=$(head -200 "$PROJECT_ROOT/REQUIREMENTS.md")
+          # サイズが大きすぎる場合は警告
+          requirements_size=$(echo "$requirements_content" | wc -c)
+          if [ $requirements_size -gt 16000 ]; then
+            # 最初の150行に制限
+            requirements_content=$(head -150 "$PROJECT_ROOT/REQUIREMENTS.md")
+            requirements_content="${requirements_content}
+
+---
+
+**注意: 上記は要件の概要です。詳細な実装要件は省略しています。**
+**このプロジェクトはデモ作成用です。UIデモのみを実装してください。**"
+          fi
+          
           prompt_content="${prompt_content}
 
 ---
 
-## REQUIREMENTS.mdの内容
+## REQUIREMENTS.mdの内容（概要）
 
 以下の要件は**UIデモの要件**として理解してください。バックエンド実装は一切不要です。
 
-${requirements_content}"
+${requirements_content}
+
+---
+
+**重要: このプロジェクトはデモ作成用です。**
+- バックエンド実装は一切不要
+- フロントエンドのみで完結
+- 全てダミーデータを使用
+- UIデモのみを実装してください"
         fi
       fi
       
