@@ -220,30 +220,72 @@ ${requirements_content}
       
       # Claudeを非対話モードで実行
       # Pro/Maxログイン運用を優先（APIキーを一時的に無効化）
+      # デバッグ: プロンプトサイズをログに記録
+      prompt_size=$(echo "$prompt_content" | wc -c)
+      echo "プロンプトサイズ: ${prompt_size} bytes" >&2
+      echo "プロンプトサイズ: ${prompt_size} bytes" >> "$log_file" 2>&1
+      
+      # プロンプトを一時ファイルに保存（デバッグ用）
+      prompt_temp_file="$worktree_path/.agent-${agent_name}.prompt.txt"
+      echo "$prompt_content" > "$prompt_temp_file"
+      
+      # Claudeコマンドを実行（バックグラウンドで実行し、タイムアウトを設定）
       if [ "$use_pro_max_login" = true ] && [ -n "$ANTHROPIC_API_KEY" ]; then
         # Pro/Maxログインを使用するため、APIキーを一時的に無効化
         unset ANTHROPIC_API_KEY
-        echo "$prompt_content" | claude --print --model "$model_alias" > "$log_file" 2>&1
-        exit_code=$?
+        (
+          cat "$prompt_temp_file" | claude --print --model "$model_alias" >> "$log_file" 2>&1
+          echo $? > "$exitcode_file"
+        ) &
+        claude_pid=$!
       else
         # APIキーを使用（またはPro/Maxログインのみ）
-        echo "$prompt_content" | claude --print --model "$model_alias" > "$log_file" 2>&1
-        exit_code=$?
+        (
+          cat "$prompt_temp_file" | claude --print --model "$model_alias" >> "$log_file" 2>&1
+          echo $? > "$exitcode_file"
+        ) &
+        claude_pid=$!
       fi
       
-      # 終了コードを保存
-      echo "$exit_code" > "$exitcode_file"
+      # タイムアウト監視（5分 = 300秒）
+      timeout_seconds=300
+      start_time=$(date +%s)
+      while kill -0 $claude_pid 2>/dev/null; do
+        current_time=$(date +%s)
+        elapsed=$((current_time - start_time))
+        if [ $elapsed -gt $timeout_seconds ]; then
+          kill $claude_pid 2>/dev/null
+          echo "タイムアウト: ${timeout_seconds}秒経過" >> "$log_file" 2>&1
+          echo "124" > "$exitcode_file"
+          break
+        fi
+        sleep 1
+      done
+      
+      # プロセスの終了を待つ
+      wait $claude_pid 2>/dev/null
+      
+      # 終了コードを読み込む
+      if [ -f "$exitcode_file" ]; then
+        exit_code=$(cat "$exitcode_file" 2>/dev/null || echo "1")
+      else
+        exit_code=1
+      fi
       
       # エラーチェック
-      if [ $exit_code -ne 0 ]; then
+      if [ $exit_code -ne 0 ] && [ $exit_code -ne 124 ]; then
         echo -e "${RED}❌ ${agent_name} の実行に失敗しました（終了コード: $exit_code）${NC}" >&2
         echo -e "${YELLOW}ログファイル: $log_file${NC}" >&2
         if [ -s "$log_file" ]; then
           echo -e "${YELLOW}エラー内容:${NC}" >&2
-          tail -10 "$log_file" | sed 's/^/  /' >&2
+          tail -20 "$log_file" | sed 's/^/  /' >&2
         fi
         echo -e "${YELLOW}💡 認証状態を確認: 'npm run agent:auth' を実行してください${NC}" >&2
+        echo -e "${YELLOW}💡 プロンプトファイル: $prompt_temp_file${NC}" >&2
       fi
+      
+      # 一時ファイルを削除（デバッグ時は残す）
+      # rm -f "$prompt_temp_file"
       
     elif [ "$model_type" == "codex" ]; then
       # Codex (OpenAI) を実行
