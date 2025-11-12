@@ -93,41 +93,62 @@ for agent_name in $AGENTS_TO_RUN; do
         continue
       fi
       
-      # モデル名をエイリアスに変換（sonnet-4.5 -> sonnet, opus -> opus）
-      model_alias=$(echo "$model" | sed 's/claude-//' | sed 's/-4\.5//' | sed 's/-4-5//')
-      
-      # プロンプトを準備
-      if [ -n "$prompt_file" ] && [ -f "$prompt_file" ]; then
-        prompt_content=$(cat "$prompt_file")
-        # REQUIREMENTS.mdの内容も追加
-        if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
-          requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
-          prompt_content="${requirements_content}
-
----
-
-${prompt_content}"
-        fi
-      else
-        prompt_content="REQUIREMENTS.mdを読み込み、${role}として作業してください。"
-        if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
-          requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
-          prompt_content="${requirements_content}
-
----
-
-${prompt_content}"
-        fi
+    # モデル名をエイリアスに変換（sonnet-4.5 -> sonnet, opus -> opus）
+    model_alias=$(echo "$model" | sed 's/claude-//' | sed 's/-4\.5//' | sed 's/-4-5//')
+    
+    # Pro/Maxログイン運用を優先（APIキーを一時的に無効化）
+    # ターミナルではPro/Maxログイン運用を使い、API課金を避ける
+    use_pro_max_login=false
+    if [ -z "$ANTHROPIC_API_KEY" ]; then
+      # APIキーが設定されていない場合はPro/Maxログインを使用
+      use_pro_max_login=true
+    else
+      # APIキーが設定されている場合でも、Pro/Maxログインが可能か確認
+      if claude whoami 2>&1 | grep -q -E "(masafumikikuchi|logged in|authenticated)"; then
+        # Pro/Maxログイン済みの場合は、APIキーを一時的に無効化してPro/Maxログインを使用
+        use_pro_max_login=true
       fi
-      
-      # Claudeを非対話モードで実行
-      # Pro/Maxログイン運用またはAPIキー運用で動作
-      # Macではtimeoutコマンドがないため、バックグラウンドで実行してタイマーを設定
-      (
+    fi
+    
+    # プロンプトを準備
+    if [ -n "$prompt_file" ] && [ -f "$prompt_file" ]; then
+      prompt_content=$(cat "$prompt_file")
+      # REQUIREMENTS.mdの内容も追加
+      if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
+        requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
+        prompt_content="${requirements_content}
+
+---
+
+${prompt_content}"
+      fi
+    else
+      prompt_content="REQUIREMENTS.mdを読み込み、${role}として作業してください。"
+      if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
+        requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
+        prompt_content="${requirements_content}
+
+---
+
+${prompt_content}"
+      fi
+    fi
+    
+    # Claudeを非対話モードで実行
+    # Pro/Maxログイン運用を優先（APIキーを一時的に無効化）
+    # Macではtimeoutコマンドがないため、バックグラウンドで実行してタイマーを設定
+    (
+      if [ "$use_pro_max_login" = true ] && [ -n "$ANTHROPIC_API_KEY" ]; then
+        # Pro/Maxログインを使用するため、APIキーを一時的に無効化
+        unset ANTHROPIC_API_KEY
         echo "$prompt_content" | claude --print --model "$model_alias" > "$log_file" 2>&1
-        echo $? > "$worktree_path/.agent-${agent_name}.exitcode"
-      ) &
-      claude_pid=$!
+      else
+        # APIキーを使用（またはPro/Maxログインのみ）
+        echo "$prompt_content" | claude --print --model "$model_alias" > "$log_file" 2>&1
+      fi
+      echo $? > "$worktree_path/.agent-${agent_name}.exitcode"
+    ) &
+    claude_pid=$!
       
       # タイムアウト監視（30分 = 1800秒）
       timeout_seconds=1800
