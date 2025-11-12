@@ -92,18 +92,38 @@ for agent_name in $AGENTS_TO_RUN; do
         continue
       fi
       
+      # モデル名をエイリアスに変換（sonnet-4.5 -> sonnet, opus -> opus）
+      model_alias=$(echo "$model" | sed 's/claude-//' | sed 's/-4\.5//' | sed 's/-4-5//')
+      
+      # プロンプトを準備
       if [ -n "$prompt_file" ] && [ -f "$prompt_file" ]; then
-        claude code run --model "$model" --prompt "$prompt_file" > "$log_file" 2>&1 || {
-          echo -e "${RED}❌ ${agent_name} の実行に失敗しました${NC}"
-          echo -e "${YELLOW}ログファイル: $log_file${NC}"
-        }
+        prompt_content=$(cat "$prompt_file")
+        # REQUIREMENTS.mdの内容も追加
+        if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
+          requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
+          prompt_content="${requirements_content}
+
+---
+
+${prompt_content}"
+        fi
       else
         prompt_content="REQUIREMENTS.mdを読み込み、${role}として作業してください。"
-        echo "$prompt_content" | claude code run --model "$model" > "$log_file" 2>&1 || {
-          echo -e "${RED}❌ ${agent_name} の実行に失敗しました${NC}"
-          echo -e "${YELLOW}ログファイル: $log_file${NC}"
-        }
+        if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
+          requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
+          prompt_content="${requirements_content}
+
+---
+
+${prompt_content}"
+        fi
       fi
+      
+      # Claudeを非対話モードで実行
+      echo "$prompt_content" | claude --print --model "$model_alias" > "$log_file" 2>&1 || {
+        echo -e "${RED}❌ ${agent_name} の実行に失敗しました${NC}"
+        echo -e "${YELLOW}ログファイル: $log_file${NC}"
+      }
     elif [ "$model_type" == "codex" ]; then
       # Codex (OpenAI) を実行
       if ! command -v codex &> /dev/null; then
@@ -112,18 +132,41 @@ for agent_name in $AGENTS_TO_RUN; do
         continue
       fi
       
+      # プロンプトを準備
       if [ -n "$prompt_file" ] && [ -f "$prompt_file" ]; then
-        codex run --model "$model" --prompt "$prompt_file" > "$log_file" 2>&1 || {
-          echo -e "${RED}❌ ${agent_name} の実行に失敗しました${NC}"
-          echo -e "${YELLOW}ログファイル: $log_file${NC}"
-        }
+        prompt_content=$(cat "$prompt_file")
+        # REQUIREMENTS.mdの内容も追加
+        if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
+          requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
+          prompt_content="${requirements_content}
+
+---
+
+${prompt_content}"
+        fi
       else
         prompt_content="REQUIREMENTS.mdを読み込み、${role}として作業してください。"
-        echo "$prompt_content" | codex run --model "$model" > "$log_file" 2>&1 || {
-          echo -e "${RED}❌ ${agent_name} の実行に失敗しました${NC}"
-          echo -e "${YELLOW}ログファイル: $log_file${NC}"
-        }
+        if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
+          requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
+          prompt_content="${requirements_content}
+
+---
+
+${prompt_content}"
+        fi
       fi
+      
+      # Codexを実行（--full-autoで非対話モード、--modelでモデル指定）
+      # モデル名をcodex形式に変換（gpt-4 -> gpt-5-codex など）
+      codex_model="$model"
+      if [ "$model" == "gpt-4" ]; then
+        codex_model="gpt-5-codex"
+      fi
+      
+      echo "$prompt_content" | codex exec --full-auto --model "$codex_model" > "$log_file" 2>&1 || {
+        echo -e "${RED}❌ ${agent_name} の実行に失敗しました${NC}"
+        echo -e "${YELLOW}ログファイル: $log_file${NC}"
+      }
     else
       echo -e "${RED}❌ 不明なモデルタイプ: $model_type${NC}"
       continue
