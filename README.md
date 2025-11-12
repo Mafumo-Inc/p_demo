@@ -65,17 +65,28 @@ Cursor 2.0 + Claude Code MAX + Codex を活用した並列マルチエージェ�
 ### クイックスタート
 
 ```bash
-# マルチエージェント環境をセットアップ
+# 1. 認証セットアップ（重要！）
+npm run agent:auth
+
+# 2. マルチエージェント環境をセットアップ
 npm run agent:setup
 
-# 全エージェントを並列実行
+# 3. 全エージェントを並列実行
 npm run agent:run
 
-# エージェントの状態を確認
+# 4. エージェントの状態を確認
 npm run agent:status
+
+# 5. リアルタイム監視（別タブで）
+npm run agent:watch
 ```
 
-詳しくは [MULTI_AGENT_GUIDE.md](./MULTI_AGENT_GUIDE.md) を参照してください。
+**重要**: 
+- **Claude Code**: 「Pro/Maxログイン運用」（API課金ゼロ）または「APIキー運用」（Cursorでも使用可能）
+- **Codex**: CLIログイン方式（Cursorにも効く）
+- **Cursor**: Claude Codeのログイン状態を読みにいかない（APIキーが必要）
+
+詳しくは [MULTI_AGENT_GUIDE.md](./MULTI_AGENT_GUIDE.md) と [AUTHENTICATION_SETUP.md](./AUTHENTICATION_SETUP.md) を参照してください。
 
 ## 🛠️ 技術スタック
 

@@ -20,9 +20,11 @@ Cursor 2.0 + Claude Code MAX + Codex + GitHub を活用した並列マルチエ�
 
 - 🚀 **並列実行**: 複数のエージェントが同時に作業
 - 💰 **コスト効率**: Claude Code MAX / Codex をターミナルから直接実行
+- 🔐 **認証方式**: Claude Codeは「Pro/Maxログイン運用」と「APIキー運用」の2択
 - 🔄 **自動化**: スクリプトベースで自動実行
 - 📊 **可視化**: 各エージェントの進捗を確認
 - 🔀 **Git統合**: Worktreeとブランチで分離管理
+- 🎯 **Cursor独立**: Cursorのトークン制限とは独立して動作
 
 ## ✅ 前提条件
 
@@ -30,11 +32,13 @@ Cursor 2.0 + Claude Code MAX + Codex + GitHub を活用した並列マルチエ�
 
 1. **Claude Code MAX 契約**
    - AnthropicのClaude Code MAXにアクセス可能
-   - ターミナルから `claude code` コマンドが使用可能
+   - ターミナルから `claude` コマンドが使用可能
+   - **認証方式**: Pro/Maxログイン運用（推奨・API課金ゼロ）またはAPIキー運用
 
 2. **Codex (OpenAI) 契約**
    - OpenAIのCodexにアクセス可能
    - ターミナルから `codex` コマンドが使用可能
+   - **認証方式**: CLIログイン方式（Cursorにも効く）
 
 3. **Cursor 2.0**
    - Cursor 2.0がインストールされていること
@@ -49,7 +53,27 @@ Cursor 2.0 + Claude Code MAX + Codex + GitHub を活用した並列マルチエ�
 
 ## 🚀 セットアップ
 
-### Step 1: マルチエージェント環境のセットアップ
+### Step 1: 認証セットアップ（重要）
+
+```bash
+# 認証セットアップスクリプトを実行
+npm run agent:auth
+```
+
+このスクリプトは以下を実行します：
+- Codexのログイン状態を確認・ログイン
+- Claude Codeの認証方式を選択（Pro/Maxログイン or APIキー）
+- 環境変数の設定をサポート
+- 認証テストを実行
+
+**重要**: 
+- **Claude Code**: 「Pro/Maxログイン運用」（API課金ゼロ・ターミナル専用）または「APIキー運用」（Cursorでも使用可能）
+- **Codex**: CLIログイン方式（Cursorにも効く）
+- **Cursor**: Claude Codeのログイン状態を読みにいかない（APIキーが必要）
+
+詳しくは [AUTHENTICATION_SETUP.md](./AUTHENTICATION_SETUP.md) を参照してください。
+
+### Step 2: マルチエージェント環境のセットアップ
 
 ```bash
 # プロジェクトディレクトリに移動
