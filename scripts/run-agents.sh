@@ -104,10 +104,15 @@ for agent_name in $AGENTS_TO_RUN; do
       use_pro_max_login=true
     else
       # APIキーが設定されている場合でも、Pro/Maxログインが可能か確認
+      # APIキーを一時的に無効化して確認
+      original_api_key="$ANTHROPIC_API_KEY"
+      unset ANTHROPIC_API_KEY
       if claude whoami 2>&1 | grep -q -E "(masafumikikuchi|logged in|authenticated)"; then
         # Pro/Maxログイン済みの場合は、APIキーを一時的に無効化してPro/Maxログインを使用
         use_pro_max_login=true
       fi
+      # APIキーを復元
+      export ANTHROPIC_API_KEY="$original_api_key"
     fi
     
     # プロンプトを準備
