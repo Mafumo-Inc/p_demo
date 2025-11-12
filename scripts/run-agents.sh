@@ -95,17 +95,18 @@ for agent_name in $AGENTS_TO_RUN; do
   echo -e "   Model: ${model} (${model_type})"
   echo -e "   Worktree: ${worktree_path}"
 
+  # ログファイルと終了コードファイルのパスを定義
+  log_file="$worktree_path/.agent-${agent_name}.log"
+  exitcode_file="$worktree_path/.agent-${agent_name}.exitcode"
+  prompt_temp_file="$worktree_path/.agent-${agent_name}.prompt.txt"
+  
+  # ログファイルを初期化
+  > "$log_file"
+  echo "1" > "$exitcode_file"  # デフォルトはエラー
+  
   # バックグラウンドでエージェントを実行
   (
     cd "$worktree_path"
-    
-    # ログファイル
-    log_file="$worktree_path/.agent-${agent_name}.log"
-    exitcode_file="$worktree_path/.agent-${agent_name}.exitcode"
-    
-    # ログファイルを初期化
-    > "$log_file"
-    echo "1" > "$exitcode_file"  # デフォルトはエラー
     
     # モデルタイプに応じてコマンドを実行
     if [ "$model_type" == "claude-code-max" ]; then
@@ -226,54 +227,25 @@ ${requirements_content}
       echo "プロンプトサイズ: ${prompt_size} bytes" >> "$log_file" 2>&1
       
       # プロンプトを一時ファイルに保存（デバッグ用）
-      prompt_temp_file="$worktree_path/.agent-${agent_name}.prompt.txt"
       echo "$prompt_content" > "$prompt_temp_file"
       
-      # Claudeコマンドを実行（バックグラウンドで実行し、タイムアウトを設定）
+      # Claudeコマンドを実行（バックグラウンドで実行）
       if [ "$use_pro_max_login" = true ] && [ -n "$ANTHROPIC_API_KEY" ]; then
         # Pro/Maxログインを使用するため、APIキーを一時的に無効化
         unset ANTHROPIC_API_KEY
-        (
-          cat "$prompt_temp_file" | claude --print --model "$model_alias" >> "$log_file" 2>&1
-          echo $? > "$exitcode_file"
-        ) &
-        claude_pid=$!
+        cat "$prompt_temp_file" | claude --print --model "$model_alias" >> "$log_file" 2>&1
+        exit_code=$?
       else
         # APIキーを使用（またはPro/Maxログインのみ）
-        (
-          cat "$prompt_temp_file" | claude --print --model "$model_alias" >> "$log_file" 2>&1
-          echo $? > "$exitcode_file"
-        ) &
-        claude_pid=$!
+        cat "$prompt_temp_file" | claude --print --model "$model_alias" >> "$log_file" 2>&1
+        exit_code=$?
       fi
       
-      # タイムアウト監視（5分 = 300秒）
-      timeout_seconds=300
-      start_time=$(date +%s)
-      while kill -0 $claude_pid 2>/dev/null; do
-        current_time=$(date +%s)
-        elapsed=$((current_time - start_time))
-        if [ $elapsed -gt $timeout_seconds ]; then
-          kill $claude_pid 2>/dev/null
-          echo "タイムアウト: ${timeout_seconds}秒経過" >> "$log_file" 2>&1
-          echo "124" > "$exitcode_file"
-          break
-        fi
-        sleep 1
-      done
-      
-      # プロセスの終了を待つ
-      wait $claude_pid 2>/dev/null
-      
-      # 終了コードを読み込む
-      if [ -f "$exitcode_file" ]; then
-        exit_code=$(cat "$exitcode_file" 2>/dev/null || echo "1")
-      else
-        exit_code=1
-      fi
+      # 終了コードを保存
+      echo "$exit_code" > "$exitcode_file"
       
       # エラーチェック
-      if [ $exit_code -ne 0 ] && [ $exit_code -ne 124 ]; then
+      if [ $exit_code -ne 0 ]; then
         echo -e "${RED}❌ ${agent_name} の実行に失敗しました（終了コード: $exit_code）${NC}" >&2
         echo -e "${YELLOW}ログファイル: $log_file${NC}" >&2
         if [ -s "$log_file" ]; then
@@ -425,19 +397,45 @@ if [ ${#PIDS[@]} -gt 0 ]; then
     worktree_path=$(echo "$agent_info" | jq -r '.worktree_path')
     exitcode_file="$worktree_path/.agent-${agent_name}.exitcode"
     
-    # エージェントの完了を待つ（最大30分）
-    timeout_seconds=1800
+    # エージェントの完了を待つ（最大10分）
+    timeout_seconds=600
     start_time=$(date +%s)
+    
+    # ログファイルのサイズを監視して進捗を確認
+    last_log_size=0
+    no_progress_count=0
     
     while kill -0 $pid 2>/dev/null; do
       current_time=$(date +%s)
       elapsed=$((current_time - start_time))
+      
+      # ログファイルのサイズを確認（進捗があるかチェック）
+      if [ -f "$log_file" ]; then
+        current_log_size=$(wc -c < "$log_file" 2>/dev/null || echo "0")
+        if [ $current_log_size -eq $last_log_size ]; then
+          no_progress_count=$((no_progress_count + 1))
+        else
+          no_progress_count=0
+          last_log_size=$current_log_size
+        fi
+        
+        # 5分間進捗がない場合はタイムアウト
+        if [ $no_progress_count -gt 300 ]; then
+          kill $pid 2>/dev/null
+          echo -e "${YELLOW}⚠️  ${agent_name} がタイムアウトしました（5分間進捗なし）${NC}"
+          echo "124" > "$exitcode_file"
+          break
+        fi
+      fi
+      
+      # タイムアウトチェック（10分）
       if [ $elapsed -gt $timeout_seconds ]; then
         kill $pid 2>/dev/null
-        echo -e "${YELLOW}⚠️  ${agent_name} がタイムアウトしました（30分）${NC}"
+        echo -e "${YELLOW}⚠️  ${agent_name} がタイムアウトしました（10分）${NC}"
         echo "124" > "$exitcode_file"
         break
       fi
+      
       sleep 2
     done
     
