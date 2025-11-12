@@ -121,6 +121,7 @@ ${prompt_content}"
       fi
       
       # Claudeを非対話モードで実行
+      # Pro/Maxログイン運用またはAPIキー運用で動作
       # Macではtimeoutコマンドがないため、バックグラウンドで実行してタイマーを設定
       (
         echo "$prompt_content" | claude --print --model "$model_alias" > "$log_file" 2>&1
@@ -148,6 +149,7 @@ ${prompt_content}"
       if [ $exit_code -ne 0 ] && [ $exit_code -ne 124 ]; then
         echo -e "${RED}❌ ${agent_name} の実行に失敗しました（終了コード: $exit_code）${NC}" >&2
         echo -e "${YELLOW}ログファイル: $log_file${NC}" >&2
+        echo -e "${YELLOW}💡 認証状態を確認: 'npm run agent:auth' を実行してください${NC}" >&2
       fi
     elif [ "$model_type" == "codex" ]; then
       # Codex (OpenAI) を実行
