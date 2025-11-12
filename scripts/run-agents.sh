@@ -71,14 +71,40 @@ for agent_name in $AGENTS_TO_RUN; do
     continue
   fi
 
-  worktree_path=$(echo "$agent_info" | jq -r '.worktree_path')
+  worktree_path_raw=$(echo "$agent_info" | jq -r '.worktree_path')
   model_type=$(echo "$agent_info" | jq -r '.model_type')
   model=$(echo "$agent_info" | jq -r '.model')
   prompt_template=$(echo "$agent_info" | jq -r '.prompt_template')
   role=$(echo "$agent_info" | jq -r '.role')
 
+  # worktree_pathを絶対パスに正規化（`..` や `.` を解決）
+  if [[ "$worktree_path_raw" = /* ]]; then
+    # 既に絶対パスの場合、正規化
+    worktree_path="$(cd "$(dirname "$worktree_path_raw")" 2>/dev/null && cd "$(basename "$worktree_path_raw")" 2>/dev/null && pwd)"
+    if [ -z "$worktree_path" ] || [ ! -d "$worktree_path" ]; then
+      # 正規化に失敗した場合、元のパスを使用
+      worktree_path="$worktree_path_raw"
+    fi
+  elif [[ "$worktree_path_raw" = ../* ]]; then
+    # `../` で始まる場合、プロジェクトルートの親ディレクトリから解決
+    relative_path=$(echo "$worktree_path_raw" | sed 's|^\.\./||')
+    worktree_path="$(cd "$PROJECT_ROOT/.." 2>/dev/null && cd "$relative_path" 2>/dev/null && pwd)"
+    if [ -z "$worktree_path" ] || [ ! -d "$worktree_path" ]; then
+      echo -e "${RED}❌ Worktreeが見つかりません: $worktree_path_raw${NC}" >&2
+      continue
+    fi
+  else
+    # 相対パスの場合、プロジェクトルートから解決
+    worktree_path="$(cd "$PROJECT_ROOT" 2>/dev/null && cd "$worktree_path_raw" 2>/dev/null && pwd)"
+    if [ -z "$worktree_path" ] || [ ! -d "$worktree_path" ]; then
+      echo -e "${RED}❌ Worktreeが見つかりません: $worktree_path_raw${NC}" >&2
+      continue
+    fi
+  fi
+  
+  # worktreeが存在するか確認
   if [ ! -d "$worktree_path" ]; then
-    echo -e "${RED}❌ Worktreeが見つかりません: $worktree_path${NC}"
+    echo -e "${RED}❌ Worktreeが見つかりません: $worktree_path (元: $worktree_path_raw)${NC}" >&2
     continue
   fi
 
@@ -94,18 +120,19 @@ for agent_name in $AGENTS_TO_RUN; do
   echo -e "${GREEN}➤ ${agent_name} (${role}) を起動中...${NC}"
   echo -e "   Model: ${model} (${model_type})"
   echo -e "   Worktree: ${worktree_path}"
-
-  # ログファイルと終了コードファイルのパスを定義
+  
+  # 絶対パスでログファイルと終了コードファイルのパスを定義
   log_file="$worktree_path/.agent-${agent_name}.log"
   exitcode_file="$worktree_path/.agent-${agent_name}.exitcode"
   prompt_temp_file="$worktree_path/.agent-${agent_name}.prompt.txt"
   
   # ログファイルと終了コードファイルを初期化（サブシェル外で実行）
-  > "$log_file"
-  echo "開始時刻: $(date)" >> "$log_file"
-  echo "エージェント: ${agent_name}" >> "$log_file"
-  echo "モデル: ${model} (${model_type})" >> "$log_file"
-  echo "1" > "$exitcode_file"  # デフォルトはエラー
+  > "$log_file" 2>&1
+  echo "開始時刻: $(date)" >> "$log_file" 2>&1
+  echo "エージェント: ${agent_name}" >> "$log_file" 2>&1
+  echo "モデル: ${model} (${model_type})" >> "$log_file" 2>&1
+  echo "Worktree: ${worktree_path}" >> "$log_file" 2>&1
+  echo "1" > "$exitcode_file" 2>&1  # デフォルトはエラー
   
   # モデルタイプに応じてプロンプトを準備（サブシェル外で実行）
   if [ "$model_type" == "claude-code-max" ]; then
@@ -383,7 +410,29 @@ if [ ${#PIDS[@]} -gt 0 ]; then
     
     # エージェント情報を取得
     agent_info=$(jq -r ".agents[] | select(.name == \"$agent_name\")" "$AGENT_CONFIG" 2>/dev/null)
-    worktree_path=$(echo "$agent_info" | jq -r '.worktree_path')
+    worktree_path_raw=$(echo "$agent_info" | jq -r '.worktree_path')
+    
+    # worktree_pathを絶対パスに正規化（メインループでも同様に処理）
+    if [[ "$worktree_path_raw" = /* ]]; then
+      worktree_path="$(cd "$(dirname "$worktree_path_raw")" 2>/dev/null && cd "$(basename "$worktree_path_raw")" 2>/dev/null && pwd)"
+      if [ -z "$worktree_path" ] || [ ! -d "$worktree_path" ]; then
+        worktree_path="$worktree_path_raw"
+      fi
+    elif [[ "$worktree_path_raw" = ../* ]]; then
+      relative_path=$(echo "$worktree_path_raw" | sed 's|^\.\./||')
+      worktree_path="$(cd "$PROJECT_ROOT/.." 2>/dev/null && cd "$relative_path" 2>/dev/null && pwd)"
+      if [ -z "$worktree_path" ] || [ ! -d "$worktree_path" ]; then
+        echo -e "${RED}❌ Worktreeが見つかりません: $worktree_path_raw${NC}" >&2
+        continue
+      fi
+    else
+      worktree_path="$(cd "$PROJECT_ROOT" 2>/dev/null && cd "$worktree_path_raw" 2>/dev/null && pwd)"
+      if [ -z "$worktree_path" ] || [ ! -d "$worktree_path" ]; then
+        echo -e "${RED}❌ Worktreeが見つかりません: $worktree_path_raw${NC}" >&2
+        continue
+      fi
+    fi
+    
     exitcode_file="$worktree_path/.agent-${agent_name}.exitcode"
     log_file="$worktree_path/.agent-${agent_name}.log"
     
