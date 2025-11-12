@@ -210,27 +210,43 @@ ${requirements_content}
     echo "プロンプトファイル作成: $prompt_temp_file" >> "$log_file"
     
     # Claudeコマンドをバックグラウンドで実行
+    # 注意: ログファイルと終了コードファイルのパスは絶対パスで統一
     (
-      cd "$worktree_path"
-      echo "Claudeコマンド実行開始: $(date)" >> "$log_file"
+      cd "$worktree_path" || exit 1
+      echo "Claudeコマンド実行開始: $(date)" >> "$log_file" 2>&1
+      echo "作業ディレクトリ: $(pwd)" >> "$log_file" 2>&1
+      echo "プロンプトファイル: $prompt_temp_file" >> "$log_file" 2>&1
       
       if [ "$use_pro_max_login" = true ] && [ -n "$ANTHROPIC_API_KEY" ]; then
         unset ANTHROPIC_API_KEY
-        cat "$prompt_temp_file" | claude --print --model "$model_alias" >> "$log_file" 2>&1
-        exit_code=$?
+        echo "Pro/Maxログインを使用" >> "$log_file" 2>&1
+        if [ -f "$prompt_temp_file" ]; then
+          cat "$prompt_temp_file" | claude --print --model "$model_alias" >> "$log_file" 2>&1
+          exit_code=$?
+        else
+          echo "エラー: プロンプトファイルが見つかりません: $prompt_temp_file" >> "$log_file" 2>&1
+          exit_code=1
+        fi
       else
-        cat "$prompt_temp_file" | claude --print --model "$model_alias" >> "$log_file" 2>&1
-        exit_code=$?
+        echo "APIキーまたはPro/Maxログインを使用" >> "$log_file" 2>&1
+        if [ -f "$prompt_temp_file" ]; then
+          cat "$prompt_temp_file" | claude --print --model "$model_alias" >> "$log_file" 2>&1
+          exit_code=$?
+        else
+          echo "エラー: プロンプトファイルが見つかりません: $prompt_temp_file" >> "$log_file" 2>&1
+          exit_code=1
+        fi
       fi
       
-      echo "Claudeコマンド実行終了: $(date) (終了コード: $exit_code)" >> "$log_file"
-      echo "$exit_code" > "$exitcode_file"
+      echo "Claudeコマンド実行終了: $(date) (終了コード: $exit_code)" >> "$log_file" 2>&1
+      echo "$exit_code" > "$exitcode_file" 2>&1
     ) &
     claude_pid=$!
     
     # PIDを記録
-    echo "$claude_pid" > "$worktree_path/.agent-${agent_name}.pid"
-    echo "Claudeプロセス開始: PID=$claude_pid" >> "$log_file"
+    echo "$claude_pid" > "$worktree_path/.agent-${agent_name}.pid" 2>&1
+    echo "Claudeプロセス開始: PID=$claude_pid" >> "$log_file" 2>&1
+    echo "Claudeプロセス開始: PID=$claude_pid" >&2
     
   elif [ "$model_type" == "codex" ]; then
     # Codex用のプロンプトを準備（サブシェル外で実行）
@@ -319,18 +335,28 @@ ${requirements_content}
     fi
     
     (
-      cd "$worktree_path"
-      echo "Codexコマンド実行開始: $(date)" >> "$log_file"
-      cat "$prompt_temp_file" | codex exec --full-auto --model "$codex_model" >> "$log_file" 2>&1
-      exit_code=$?
-      echo "Codexコマンド実行終了: $(date) (終了コード: $exit_code)" >> "$log_file"
-      echo "$exit_code" > "$exitcode_file"
+      cd "$worktree_path" || exit 1
+      echo "Codexコマンド実行開始: $(date)" >> "$log_file" 2>&1
+      echo "作業ディレクトリ: $(pwd)" >> "$log_file" 2>&1
+      echo "プロンプトファイル: $prompt_temp_file" >> "$log_file" 2>&1
+      
+      if [ -f "$prompt_temp_file" ]; then
+        cat "$prompt_temp_file" | codex exec --full-auto --model "$codex_model" >> "$log_file" 2>&1
+        exit_code=$?
+      else
+        echo "エラー: プロンプトファイルが見つかりません: $prompt_temp_file" >> "$log_file" 2>&1
+        exit_code=1
+      fi
+      
+      echo "Codexコマンド実行終了: $(date) (終了コード: $exit_code)" >> "$log_file" 2>&1
+      echo "$exit_code" > "$exitcode_file" 2>&1
     ) &
     codex_pid=$!
     
     # PIDを記録
-    echo "$codex_pid" > "$worktree_path/.agent-${agent_name}.pid"
-    echo "Codexプロセス開始: PID=$codex_pid" >> "$log_file"
+    echo "$codex_pid" > "$worktree_path/.agent-${agent_name}.pid" 2>&1
+    echo "Codexプロセス開始: PID=$codex_pid" >> "$log_file" 2>&1
+    echo "Codexプロセス開始: PID=$codex_pid" >&2
     
     # CodexプロセスのPIDを使用
     claude_pid=$codex_pid
