@@ -127,12 +127,22 @@ for agent_name in $AGENTS_TO_RUN; do
   prompt_temp_file="$worktree_path/.agent-${agent_name}.prompt.txt"
   
   # ログファイルと終了コードファイルを初期化（サブシェル外で実行）
-  > "$log_file" 2>&1
-  echo "開始時刻: $(date)" >> "$log_file" 2>&1
+  if ! > "$log_file" 2>&1; then
+    echo -e "${RED}❌ ログファイルの作成に失敗しました: $log_file${NC}" >&2
+    continue
+  fi
+  if ! echo "開始時刻: $(date)" >> "$log_file" 2>&1; then
+    echo -e "${RED}❌ ログファイルへの書き込みに失敗しました: $log_file${NC}" >&2
+    continue
+  fi
   echo "エージェント: ${agent_name}" >> "$log_file" 2>&1
   echo "モデル: ${model} (${model_type})" >> "$log_file" 2>&1
   echo "Worktree: ${worktree_path}" >> "$log_file" 2>&1
-  echo "1" > "$exitcode_file" 2>&1  # デフォルトはエラー
+  echo "ログファイル: ${log_file}" >> "$log_file" 2>&1
+  if ! echo "1" > "$exitcode_file" 2>&1; then
+    echo -e "${RED}❌ 終了コードファイルの作成に失敗しました: $exitcode_file${NC}" >&2
+    continue
+  fi
   
   # モデルタイプに応じてプロンプトを準備（サブシェル外で実行）
   if [ "$model_type" == "claude-code-max" ]; then
