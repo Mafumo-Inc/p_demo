@@ -24,10 +24,22 @@ for agent_dir in "$WORKTREE_DIR"/agent-*; do
     echo -e "${BLUE}エージェント: ${agent_name}${NC}"
     
     # プロセス確認
-    if ps aux | grep -E "(claude|codex)" | grep -v grep | grep -q "$agent_name"; then
+    exit_code_file="$agent_dir/.agent-${agent_name}.exitcode"
+    if ps aux | grep -E "(claude|codex)" | grep -v grep | grep -q "$agent_name\|$agent_dir"; then
       echo -e "  状態: ${GREEN}🟢 実行中${NC}"
+    elif [ -f "$exit_code_file" ]; then
+      exit_code=$(cat "$exit_code_file" 2>/dev/null || echo "N/A")
+      if [ "$exit_code" -eq 0 ] 2>/dev/null; then
+        echo -e "  状態: ${GREEN}✅ 完了${NC}"
+      elif [ "$exit_code" -eq 124 ] 2>/dev/null; then
+        echo -e "  状態: ${YELLOW}⚠️  タイムアウト${NC}"
+      elif [ "$exit_code" != "N/A" ] 2>/dev/null; then
+        echo -e "  状態: ${RED}❌ エラー（終了コード: $exit_code）${NC}"
+      else
+        echo -e "  状態: ${YELLOW}⚪ 停止中${NC}"
+      fi
     else
-      echo -e "  状態: ${YELLOW}⚪ 停止中${NC}"
+      echo -e "  状態: ${YELLOW}⚪ 未実行${NC}"
     fi
     
     # ログファイルサイズ
