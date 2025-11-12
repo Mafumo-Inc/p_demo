@@ -396,6 +396,7 @@ if [ ${#PIDS[@]} -gt 0 ]; then
     agent_info=$(jq -r ".agents[] | select(.name == \"$agent_name\")" "$AGENT_CONFIG" 2>/dev/null)
     worktree_path=$(echo "$agent_info" | jq -r '.worktree_path')
     exitcode_file="$worktree_path/.agent-${agent_name}.exitcode"
+    log_file="$worktree_path/.agent-${agent_name}.log"
     
     # エージェントの完了を待つ（最大10分）
     timeout_seconds=600
@@ -419,10 +420,10 @@ if [ ${#PIDS[@]} -gt 0 ]; then
           last_log_size=$current_log_size
         fi
         
-        # 5分間進捗がない場合はタイムアウト
-        if [ $no_progress_count -gt 300 ]; then
+        # 2分間進捗がない場合はタイムアウト
+        if [ $no_progress_count -gt 120 ]; then
           kill $pid 2>/dev/null
-          echo -e "${YELLOW}⚠️  ${agent_name} がタイムアウトしました（5分間進捗なし）${NC}"
+          echo -e "${YELLOW}⚠️  ${agent_name} がタイムアウトしました（2分間進捗なし）${NC}"
           echo "124" > "$exitcode_file"
           break
         fi
