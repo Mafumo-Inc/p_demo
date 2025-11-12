@@ -18,23 +18,18 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# エージェント設定ファイルを読み込み
-AGENT_CONFIG="$PROJECT_ROOT/.agents/agent-config.json"
-
-# 設定ファイルが見つからない場合、メインプロジェクトディレクトリを探す
-if [ ! -f "$AGENT_CONFIG" ]; then
-  # 現在のディレクトリがworktreeディレクトリの場合、メインプロジェクトを探す
-  CURRENT_DIR="$(pwd)"
-  if [[ "$CURRENT_DIR" == *"p_demo-worktrees"* ]]; then
-    # worktreeディレクトリからメインプロジェクトを探す
-    # p_demo-worktrees/agent-* から ../p_demo を探す
-    PARENT_DIR="$(cd "$CURRENT_DIR/../.." && pwd)"
-    if [ -f "$PARENT_DIR/.agents/agent-config.json" ]; then
-      PROJECT_ROOT="$PARENT_DIR"
-      AGENT_CONFIG="$PROJECT_ROOT/.agents/agent-config.json"
-    fi
+# 現在のディレクトリがworktreeディレクトリの場合、メインプロジェクトを探す
+CURRENT_DIR="$(pwd)"
+if [[ "$CURRENT_DIR" == *"p_demo-worktrees"* ]]; then
+  # worktreeディレクトリからメインプロジェクトを探す
+  PARENT_DIR="$(cd "$CURRENT_DIR/../.." && pwd)"
+  if [ -f "$PARENT_DIR/.agents/agent-config.json" ]; then
+    PROJECT_ROOT="$PARENT_DIR"
   fi
 fi
+
+# エージェント設定ファイルを読み込み
+AGENT_CONFIG="$PROJECT_ROOT/.agents/agent-config.json"
 
 # 設定ファイルが見つからない場合、エラーを表示
 if [ ! -f "$AGENT_CONFIG" ]; then
@@ -106,106 +101,102 @@ for agent_name in $AGENTS_TO_RUN; do
     
     # ログファイル
     log_file="$worktree_path/.agent-${agent_name}.log"
+    exitcode_file="$worktree_path/.agent-${agent_name}.exitcode"
+    
+    # ログファイルを初期化
+    > "$log_file"
+    echo "1" > "$exitcode_file"  # デフォルトはエラー
     
     # モデルタイプに応じてコマンドを実行
     if [ "$model_type" == "claude-code-max" ]; then
       # Claude Code MAX を実行
       if ! command -v claude &> /dev/null; then
-        echo -e "${RED}❌ claude コマンドが見つかりません${NC}"
-        echo -e "${YELLOW}💡 Claude Code MAXがインストールされているか確認してください${NC}"
-        continue
+        echo -e "${RED}❌ claude コマンドが見つかりません${NC}" >&2
+        echo -e "${YELLOW}💡 Claude Code MAXがインストールされているか確認してください${NC}" >&2
+        echo "1" > "$exitcode_file"
+        exit 1
       fi
       
-    # モデル名をエイリアスに変換（sonnet-4.5 -> sonnet, opus -> opus）
-    model_alias=$(echo "$model" | sed 's/claude-//' | sed 's/-4\.5//' | sed 's/-4-5//')
-    
-    # Pro/Maxログイン運用を優先（APIキーを一時的に無効化）
-    # ターミナルではPro/Maxログイン運用を使い、API課金を避ける
-    use_pro_max_login=false
-    if [ -z "$ANTHROPIC_API_KEY" ]; then
-      # APIキーが設定されていない場合はPro/Maxログインを使用
-      use_pro_max_login=true
-    else
-      # APIキーが設定されている場合でも、Pro/Maxログインが可能か確認
-      # APIキーを一時的に無効化して確認
-      original_api_key="$ANTHROPIC_API_KEY"
-      unset ANTHROPIC_API_KEY
-      if claude whoami 2>&1 | grep -q -E "(masafumikikuchi|logged in|authenticated)"; then
-        # Pro/Maxログイン済みの場合は、APIキーを一時的に無効化してPro/Maxログインを使用
+      # モデル名をエイリアスに変換（sonnet-4.5 -> sonnet, opus -> opus）
+      model_alias=$(echo "$model" | sed 's/claude-//' | sed 's/-4\.5//' | sed 's/-4-5//')
+      
+      # Pro/Maxログイン運用を優先（APIキーを一時的に無効化）
+      # ターミナルではPro/Maxログイン運用を使い、API課金を避ける
+      use_pro_max_login=false
+      if [ -z "$ANTHROPIC_API_KEY" ]; then
+        # APIキーが設定されていない場合はPro/Maxログインを使用
         use_pro_max_login=true
+      else
+        # APIキーが設定されている場合でも、Pro/Maxログインが可能か確認
+        # APIキーを一時的に無効化して確認
+        original_api_key="$ANTHROPIC_API_KEY"
+        unset ANTHROPIC_API_KEY
+        if claude whoami 2>&1 | grep -q -E "(masafumikikuchi|logged in|authenticated)"; then
+          # Pro/Maxログイン済みの場合は、APIキーを一時的に無効化してPro/Maxログインを使用
+          use_pro_max_login=true
+        fi
+        # APIキーを復元
+        export ANTHROPIC_API_KEY="$original_api_key"
       fi
-      # APIキーを復元
-      export ANTHROPIC_API_KEY="$original_api_key"
-    fi
-    
-    # プロンプトを準備
-    if [ -n "$prompt_file" ] && [ -f "$prompt_file" ]; then
-      prompt_content=$(cat "$prompt_file")
-      # REQUIREMENTS.mdの内容も追加
-      if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
-        requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
-        prompt_content="${requirements_content}
+      
+      # プロンプトを準備
+      if [ -n "$prompt_file" ] && [ -f "$prompt_file" ]; then
+        prompt_content=$(cat "$prompt_file")
+        # REQUIREMENTS.mdの内容も追加
+        if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
+          requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
+          prompt_content="${requirements_content}
 
 ---
 
 ${prompt_content}"
-      fi
-    else
-      prompt_content="REQUIREMENTS.mdを読み込み、${role}として作業してください。"
-      if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
-        requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
-        prompt_content="${requirements_content}
+        fi
+      else
+        prompt_content="REQUIREMENTS.mdを読み込み、${role}として作業してください。"
+        if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
+          requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
+          prompt_content="${requirements_content}
 
 ---
 
 ${prompt_content}"
+        fi
       fi
-    fi
-    
-    # Claudeを非対話モードで実行
-    # Pro/Maxログイン運用を優先（APIキーを一時的に無効化）
-    # Macではtimeoutコマンドがないため、バックグラウンドで実行してタイマーを設定
-    (
+      
+      # Claudeを非対話モードで実行
+      # Pro/Maxログイン運用を優先（APIキーを一時的に無効化）
       if [ "$use_pro_max_login" = true ] && [ -n "$ANTHROPIC_API_KEY" ]; then
         # Pro/Maxログインを使用するため、APIキーを一時的に無効化
         unset ANTHROPIC_API_KEY
         echo "$prompt_content" | claude --print --model "$model_alias" > "$log_file" 2>&1
+        exit_code=$?
       else
         # APIキーを使用（またはPro/Maxログインのみ）
         echo "$prompt_content" | claude --print --model "$model_alias" > "$log_file" 2>&1
+        exit_code=$?
       fi
-      echo $? > "$worktree_path/.agent-${agent_name}.exitcode"
-    ) &
-    claude_pid=$!
       
-      # タイムアウト監視（30分 = 1800秒）
-      timeout_seconds=1800
-      start_time=$(date +%s)
-      while kill -0 $claude_pid 2>/dev/null; do
-        current_time=$(date +%s)
-        elapsed=$((current_time - start_time))
-        if [ $elapsed -gt $timeout_seconds ]; then
-          kill $claude_pid 2>/dev/null
-          echo -e "${YELLOW}⚠️  ${agent_name} がタイムアウトしました（30分）${NC}" >&2
-          echo 124 > "$worktree_path/.agent-${agent_name}.exitcode"
-          break
-        fi
-        sleep 5
-      done
+      # 終了コードを保存
+      echo "$exit_code" > "$exitcode_file"
       
-      wait $claude_pid 2>/dev/null
-      exit_code=$(cat "$worktree_path/.agent-${agent_name}.exitcode" 2>/dev/null || echo 0)
-      if [ $exit_code -ne 0 ] && [ $exit_code -ne 124 ]; then
+      # エラーチェック
+      if [ $exit_code -ne 0 ]; then
         echo -e "${RED}❌ ${agent_name} の実行に失敗しました（終了コード: $exit_code）${NC}" >&2
         echo -e "${YELLOW}ログファイル: $log_file${NC}" >&2
+        if [ -s "$log_file" ]; then
+          echo -e "${YELLOW}エラー内容:${NC}" >&2
+          tail -10 "$log_file" | sed 's/^/  /' >&2
+        fi
         echo -e "${YELLOW}💡 認証状態を確認: 'npm run agent:auth' を実行してください${NC}" >&2
       fi
+      
     elif [ "$model_type" == "codex" ]; then
       # Codex (OpenAI) を実行
       if ! command -v codex &> /dev/null; then
-        echo -e "${RED}❌ codex コマンドが見つかりません${NC}"
-        echo -e "${YELLOW}💡 Codexがインストールされているか確認してください${NC}"
-        continue
+        echo -e "${RED}❌ codex コマンドが見つかりません${NC}" >&2
+        echo -e "${YELLOW}💡 Codexがインストールされているか確認してください${NC}" >&2
+        echo "1" > "$exitcode_file"
+        exit 1
       fi
       
       # プロンプトを準備
@@ -239,40 +230,28 @@ ${prompt_content}"
         codex_model="gpt-5-codex"
       fi
       
-      # Codexを実行（タイムアウト30分）
-      (
-        echo "$prompt_content" | codex exec --full-auto --model "$codex_model" > "$log_file" 2>&1
-        echo $? > "$worktree_path/.agent-${agent_name}.exitcode"
-      ) &
-      codex_pid=$!
+      # Codexを実行
+      echo "$prompt_content" | codex exec --full-auto --model "$codex_model" > "$log_file" 2>&1
+      exit_code=$?
       
-      # タイムアウト監視（30分 = 1800秒）
-      timeout_seconds=1800
-      start_time=$(date +%s)
-      while kill -0 $codex_pid 2>/dev/null; do
-        current_time=$(date +%s)
-        elapsed=$((current_time - start_time))
-        if [ $elapsed -gt $timeout_seconds ]; then
-          kill $codex_pid 2>/dev/null
-          echo -e "${YELLOW}⚠️  ${agent_name} がタイムアウトしました（30分）${NC}" >&2
-          echo 124 > "$worktree_path/.agent-${agent_name}.exitcode"
-          break
-        fi
-        sleep 5
-      done
+      # 終了コードを保存
+      echo "$exit_code" > "$exitcode_file"
       
-      wait $codex_pid 2>/dev/null
-      exit_code=$(cat "$worktree_path/.agent-${agent_name}.exitcode" 2>/dev/null || echo 0)
-      if [ $exit_code -ne 0 ] && [ $exit_code -ne 124 ]; then
+      # エラーチェック
+      if [ $exit_code -ne 0 ]; then
         echo -e "${RED}❌ ${agent_name} の実行に失敗しました（終了コード: $exit_code）${NC}" >&2
         echo -e "${YELLOW}ログファイル: $log_file${NC}" >&2
+        if [ -s "$log_file" ]; then
+          echo -e "${YELLOW}エラー内容:${NC}" >&2
+          tail -10 "$log_file" | sed 's/^/  /' >&2
+        fi
       fi
+      
     else
-      echo -e "${RED}❌ 不明なモデルタイプ: $model_type${NC}"
-      continue
+      echo -e "${RED}❌ 不明なモデルタイプ: $model_type${NC}" >&2
+      echo "1" > "$exitcode_file"
+      exit 1
     fi
-    
-    echo -e "${GREEN}✅ ${agent_name} の実行が完了しました${NC}"
   ) &
   
   PIDS+=($!)
@@ -280,20 +259,56 @@ ${prompt_content}"
 done
 
 # 全てのエージェントの完了を待つ
-echo ""
-echo -e "${BLUE}⏳ 全エージェントの完了を待っています...${NC}"
-echo ""
-
-for i in "${!PIDS[@]}"; do
-  pid=${PIDS[$i]}
-  agent_name=${AGENT_NAMES[$i]}
+if [ ${#PIDS[@]} -gt 0 ]; then
+  echo ""
+  echo -e "${BLUE}⏳ 全エージェントの完了を待っています...${NC}"
+  echo ""
   
-  if wait $pid; then
-    echo -e "${GREEN}✅ ${agent_name} が正常に完了しました${NC}"
-  else
-    echo -e "${RED}❌ ${agent_name} がエラーで終了しました${NC}"
-  fi
-done
+  for i in "${!PIDS[@]}"; do
+    pid=${PIDS[$i]}
+    agent_name=${AGENT_NAMES[$i]}
+    
+    # エージェント情報を取得
+    agent_info=$(jq -r ".agents[] | select(.name == \"$agent_name\")" "$AGENT_CONFIG" 2>/dev/null)
+    worktree_path=$(echo "$agent_info" | jq -r '.worktree_path')
+    exitcode_file="$worktree_path/.agent-${agent_name}.exitcode"
+    
+    # エージェントの完了を待つ（最大30分）
+    timeout_seconds=1800
+    start_time=$(date +%s)
+    
+    while kill -0 $pid 2>/dev/null; do
+      current_time=$(date +%s)
+      elapsed=$((current_time - start_time))
+      if [ $elapsed -gt $timeout_seconds ]; then
+        kill $pid 2>/dev/null
+        echo -e "${YELLOW}⚠️  ${agent_name} がタイムアウトしました（30分）${NC}"
+        echo "124" > "$exitcode_file"
+        break
+      fi
+      sleep 2
+    done
+    
+    # プロセスの終了を待つ
+    wait $pid 2>/dev/null
+    wait_exit_code=$?
+    
+    # 終了コードを確認
+    if [ -f "$exitcode_file" ]; then
+      exit_code=$(cat "$exitcode_file" 2>/dev/null || echo "0")
+    else
+      exit_code=$wait_exit_code
+    fi
+    
+    if [ "$exit_code" -eq 0 ] 2>/dev/null; then
+      echo -e "${GREEN}✅ ${agent_name} が正常に完了しました${NC}"
+    elif [ "$exit_code" -eq 124 ] 2>/dev/null; then
+      echo -e "${YELLOW}⚠️  ${agent_name} がタイムアウトしました${NC}"
+    else
+      echo -e "${RED}❌ ${agent_name} がエラーで終了しました（終了コード: $exit_code）${NC}"
+    fi
+  done
+fi
 
 echo ""
 echo -e "${GREEN}🎉 全エージェントの実行が完了しました！${NC}"
@@ -303,4 +318,3 @@ echo -e "1. 各worktreeの変更を確認: git status"
 echo -e "2. 変更をコミット: git add . && git commit -m '...'"
 echo -e "3. PRを作成して比較・レビュー"
 echo -e "4. 最良案を選択してマージ"
-
