@@ -200,26 +200,36 @@ ${prompt_content}"
       fi
       
       # プロンプトを準備
+      # 重要: エージェントプロンプトテンプレートを先に読み込んでから、REQUIREMENTS.mdを追加
+      # これにより、エージェントは「デモ作成用・バックエンド不要」という指示を先に読む
       if [ -n "$prompt_file" ] && [ -f "$prompt_file" ]; then
         prompt_content=$(cat "$prompt_file")
-        # REQUIREMENTS.mdの内容も追加
+        # REQUIREMENTS.mdの内容も追加（エージェントプロンプトの後に追加）
         if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
           requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
-          prompt_content="${requirements_content}
+          prompt_content="${prompt_content}
 
 ---
 
-${prompt_content}"
+## REQUIREMENTS.mdの内容
+
+以下の要件は**UIデモの要件**として理解してください。バックエンド実装は一切不要です。
+
+${requirements_content}"
         fi
       else
-        prompt_content="REQUIREMENTS.mdを読み込み、${role}として作業してください。"
+        prompt_content="REQUIREMENTS.mdを読み込み、${role}として作業してください。\n\n⚠️ 重要: このプロジェクトはデモ作成用です。バックエンド実装は一切不要です。フロントエンドのみで完結し、全てダミーデータを使用してください。"
         if [ -f "$PROJECT_ROOT/REQUIREMENTS.md" ]; then
           requirements_content=$(cat "$PROJECT_ROOT/REQUIREMENTS.md")
-          prompt_content="${requirements_content}
+          prompt_content="${prompt_content}
 
 ---
 
-${prompt_content}"
+## REQUIREMENTS.mdの内容
+
+以下の要件は**UIデモの要件**として理解してください。バックエンド実装は一切不要です。
+
+${requirements_content}"
         fi
       fi
       
