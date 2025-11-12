@@ -10,7 +10,20 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# プロジェクトルートディレクトリを取得
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# 現在のディレクトリがworktreeディレクトリの場合、メインプロジェクトを探す
+CURRENT_DIR="$(pwd)"
+if [[ "$CURRENT_DIR" == *"p_demo-worktrees"* ]]; then
+  # worktreeディレクトリからメインプロジェクトを探す
+  PARENT_DIR="$(cd "$CURRENT_DIR/../.." && pwd)"
+  if [ -f "$PARENT_DIR/.agents/agent-config.json" ]; then
+    PROJECT_ROOT="$PARENT_DIR"
+  fi
+fi
+
 WORKTREE_DIR="$PROJECT_ROOT/../p_demo-worktrees"
 
 # クリア

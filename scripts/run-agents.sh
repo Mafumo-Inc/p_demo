@@ -14,17 +14,40 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # プロジェクトルートディレクトリを取得
-PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$PROJECT_ROOT"
+# スクリプトの場所から相対的にプロジェクトルートを取得
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # エージェント設定ファイルを読み込み
 AGENT_CONFIG="$PROJECT_ROOT/.agents/agent-config.json"
 
+# 設定ファイルが見つからない場合、メインプロジェクトディレクトリを探す
+if [ ! -f "$AGENT_CONFIG" ]; then
+  # 現在のディレクトリがworktreeディレクトリの場合、メインプロジェクトを探す
+  CURRENT_DIR="$(pwd)"
+  if [[ "$CURRENT_DIR" == *"p_demo-worktrees"* ]]; then
+    # worktreeディレクトリからメインプロジェクトを探す
+    # p_demo-worktrees/agent-* から ../p_demo を探す
+    PARENT_DIR="$(cd "$CURRENT_DIR/../.." && pwd)"
+    if [ -f "$PARENT_DIR/.agents/agent-config.json" ]; then
+      PROJECT_ROOT="$PARENT_DIR"
+      AGENT_CONFIG="$PROJECT_ROOT/.agents/agent-config.json"
+    fi
+  fi
+fi
+
+# 設定ファイルが見つからない場合、エラーを表示
 if [ ! -f "$AGENT_CONFIG" ]; then
   echo -e "${RED}❌ エージェント設定ファイルが見つかりません: $AGENT_CONFIG${NC}"
-  echo -e "${YELLOW}💡 まず 'npm run agent:setup' を実行してください${NC}"
+  echo -e "${YELLOW}💡 メインプロジェクトディレクトリから実行してください:${NC}"
+  echo -e "${YELLOW}   cd /Users/masafumikikuchi/Dev/p_demo${NC}"
+  echo -e "${YELLOW}   npm run agent:run:backend${NC}"
+  echo -e "${YELLOW}   または、まず 'npm run agent:setup' を実行してください${NC}"
   exit 1
 fi
+
+# プロジェクトルートディレクトリに移動
+cd "$PROJECT_ROOT"
 
 # 日付サフィックスを取得
 DATE_SUFFIX=$(jq -r '.workflow.date_suffix' "$AGENT_CONFIG" 2>/dev/null || date +%Y%m%d)
