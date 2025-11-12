@@ -44,3 +44,7 @@ next-env.d.ts
 .agents/agent-config.json
 *.log
 ../p_demo-worktrees/
+
+# authentication
+.env.local
+.env*.local

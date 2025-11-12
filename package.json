@@ -16,7 +16,8 @@
     "agent:run:testing": "bash scripts/run-agents.sh testing",
     "agent:run:review": "bash scripts/run-agents.sh review",
     "agent:progress": "bash scripts/check-agent-progress.sh",
-    "agent:watch": "bash scripts/watch-agent-progress.sh"
+    "agent:watch": "bash scripts/watch-agent-progress.sh",
+    "agent:auth": "bash scripts/setup-authentication.sh"
   },
   "dependencies": {
     "react": "19.2.0",
