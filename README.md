@@ -49,12 +49,32 @@ npm run dev
 | ファイル | 用途 |
 |---------|------|
 | `REQUIREMENTS.md` | 与件・要件メモ（ここに食事中の内容を記載） |
+| `MULTI_AGENT_GUIDE.md` | **🤖 マルチエージェント開発環境ガイド** |
 | `AI_PROMPT_TEMPLATE.md` | **新しいチャット用のプロンプトテンプレート** |
 | `SETUP.md` | セットアップと使い方の詳細ガイド |
 | `src/app/page.tsx` | メインページ（デモのUI） |
 | `src/types/index.ts` | 型定義 |
 | `src/data/sampleData.ts` | ダミーデータ |
 | `src/lib/dummyData.ts` | ダミーデータ生成ヘルパー |
+
+## 🤖 マルチエージェント開発（新機能）
+
+Cursor 2.0 + Claude Code MAX + Codex を活用した並列マルチエージェント開発環境が利用可能です。
+
+### クイックスタート
+
+```bash
+# マルチエージェント環境をセットアップ
+npm run agent:setup
+
+# 全エージェントを並列実行
+npm run agent:run
+
+# エージェントの状態を確認
+npm run agent:status
+```
+
+詳しくは [MULTI_AGENT_GUIDE.md](./MULTI_AGENT_GUIDE.md) を参照してください。
 
 ## 🛠️ 技術スタック
 

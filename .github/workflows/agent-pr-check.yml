@@ -1,0 +1,83 @@
+name: Agent PR Check
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'agent/**'
+      - 'scripts/**'
+      - 'src/**'
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Build project
+        run: npm run build
+
+      - name: Check TypeScript
+        run: npx tsc --noEmit
+
+  agent-changes:
+    runs-on: ubuntu-latest
+    if: contains(github.head_ref, 'agent/')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect agent type
+        id: agent
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          if [[ "$BRANCH" == *"architect"* ]]; then
+            echo "type=architect" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH" == *"backend"* ]]; then
+            echo "type=backend" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH" == *"frontend"* ]]; then
+            echo "type=frontend" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH" == *"testing"* ]]; then
+            echo "type=testing" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH" == *"review"* ]]; then
+            echo "type=review" >> $GITHUB_OUTPUT
+          else
+            echo "type=unknown" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const agentType = '${{ steps.agent.outputs.type }}';
+            const comment = `🤖 **エージェントPR検出**: ${agentType}
+            
+            This PR was created by the ${agentType} agent.
+            
+            Please review the changes and merge if approved.`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+

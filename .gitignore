@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# multi-agent
+.agents/agent-config.json
+*.log
+../p_demo-worktrees/
