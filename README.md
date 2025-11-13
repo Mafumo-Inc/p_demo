@@ -9,7 +9,7 @@
 - 📊 **ダミーデータ**: 充実したダミーデータ生成ユーティリティ
 - 🔄 **ホットリロード**: 変更が即座に反映
 - 📝 **与件管理**: REQUIREMENTS.mdで要件を整理
-- 🤖 **マルチエージェント**: Cursor 2.0 + Claude Code MAX + Codex で並列開発（新機能）
+- 🤝 **Codexとペア開発**: 単一ブランチでシンプルにコラボレーション
 
 ## 🚀 クイックスタート
 
@@ -50,7 +50,6 @@ npm run dev
 | ファイル | 用途 |
 |---------|------|
 | `REQUIREMENTS.md` | 与件・要件メモ（ここに食事中の内容を記載） |
-| `MULTI_AGENT_GUIDE.md` | **🤖 マルチエージェント開発環境ガイド** |
 | `AI_PROMPT_TEMPLATE.md` | **新しいチャット用のプロンプトテンプレート** |
 | `SETUP.md` | セットアップと使い方の詳細ガイド |
 | `src/app/page.tsx` | メインページ（デモのUI） |
@@ -58,35 +57,21 @@ npm run dev
 | `src/data/sampleData.ts` | ダミーデータ |
 | `src/lib/dummyData.ts` | ダミーデータ生成ヘルパー |
 
-## 🤖 マルチエージェント開発（新機能）
+## 🔁 開発フロー（単一ブランチ運用）
 
-Cursor 2.0 + Claude Code MAX + Codex を活用した並列マルチエージェント開発環境が利用可能です。
-
-### クイックスタート
+1. `REQUIREMENTS.md` に与件を追記
+2. `npm run dev` を起動してブラウザで確認
+3. Codex とのチャットで `AI_PROMPT_TEMPLATE.md` を使いながら編集
+4. 変更内容をレビューし、まとめてコミット & プッシュ
 
 ```bash
-# 1. 認証セットアップ（重要！）
-npm run agent:auth
-
-# 2. マルチエージェント環境をセットアップ
-npm run agent:setup
-
-# 3. 全エージェントを並列実行
-npm run agent:run
-
-# 4. エージェントの状態を確認
-npm run agent:status
-
-# 5. リアルタイム監視（別タブで）
-npm run agent:watch
+git status
+git add .
+git commit -m "feat: update demo UI"
+git push origin main
 ```
 
-**重要**: 
-- **Claude Code**: 「Pro/Maxログイン運用」（API課金ゼロ）または「APIキー運用」（Cursorでも使用可能）
-- **Codex**: CLIログイン方式（Cursorにも効く）
-- **Cursor**: Claude Codeのログイン状態を読みにいかない（APIキーが必要）
-
-詳しくは [MULTI_AGENT_GUIDE.md](./MULTI_AGENT_GUIDE.md) と [AUTHENTICATION_SETUP.md](./AUTHENTICATION_SETUP.md) を参照してください。
+必要に応じてブランチを切り、PR ベースで通常開発を行ってください。
 
 ## 🛠️ 技術スタック
 

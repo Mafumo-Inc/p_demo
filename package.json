@@ -6,18 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "agent:setup": "bash scripts/setup-multi-agent.sh",
-    "agent:run": "bash scripts/run-agents.sh",
-    "agent:status": "bash scripts/agent-status.sh",
-    "agent:run:architect": "bash scripts/run-agents.sh architect",
-    "agent:run:backend": "bash scripts/run-agents.sh backend",
-    "agent:run:frontend": "bash scripts/run-agents.sh frontend",
-    "agent:run:testing": "bash scripts/run-agents.sh testing",
-    "agent:run:review": "bash scripts/run-agents.sh review",
-    "agent:progress": "bash scripts/check-agent-progress.sh",
-    "agent:watch": "bash scripts/watch-agent-progress.sh",
-    "agent:auth": "bash scripts/setup-authentication.sh"
+    "lint": "eslint"
   },
   "dependencies": {
     "react": "19.2.0",
